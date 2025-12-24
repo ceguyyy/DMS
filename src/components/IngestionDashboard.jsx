@@ -98,18 +98,14 @@ const IngestionDashboard = ({ batches, onNavigateToQC, onOpenModal }) => {
                         </div>
                     )}
                 </div>
-                <button className="btn btn-primary" onClick={onOpenModal}>+ Create Upload Batch</button>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '24px' }}>
                 <div style={{ border: '1px solid var(--border)', padding: '16px', borderRadius: '6px' }}>
                     <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-sub)' }}>TOTAL DOCUMENTS</div>
                     <div style={{ fontSize: '20px', fontWeight: 700, marginTop: '4px' }}>{totalDocs}</div>
                 </div>
-                <div style={{ border: '1px solid var(--border)', padding: '16px', borderRadius: '6px' }}>
-                    <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-sub)' }}>NEEDS REVIEW</div>
-                    <div style={{ fontSize: '20px', fontWeight: 700, marginTop: '4px', color: 'var(--primary)' }}>{needsReview}</div>
-                </div>
+
                 <div style={{ border: '1px solid var(--border)', padding: '16px', borderRadius: '6px' }}>
                     <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-sub)' }}>SYNCED TODAY</div>
                     <div style={{ fontSize: '20px', fontWeight: 700, marginTop: '4px', color: 'var(--success-text)' }}>{synced}</div>
@@ -136,10 +132,11 @@ const IngestionDashboard = ({ batches, onNavigateToQC, onOpenModal }) => {
                         {filteredBatches.map(row => (
                             <tr
                                 key={row.id}
-                                onClick={() => row.status === 'DRAFT' && onNavigateToQC(row.id)}
+                                onClick={() => onNavigateToQC(row.id)}
                                 style={{
-                                    cursor: row.status === 'DRAFT' ? 'pointer' : 'default',
-                                    background: row.status === 'DRAFT' ? 'white' : '#f9fafb'
+                                    cursor: 'pointer',
+                                    background: 'white',
+                                    transition: 'background 0.2s'
                                 }}
                                 className="table-row-hover"
                             >
@@ -147,17 +144,13 @@ const IngestionDashboard = ({ batches, onNavigateToQC, onOpenModal }) => {
                                 <td>{row.file}</td>
                                 <td>{row.cat}</td>
                                 <td>
-                                    {row.status === 'DRAFT' && <span style={{ background: 'var(--success-bg)', color: 'var(--success-text)', padding: '4px 8px', borderRadius: '4px', fontWeight: 600, fontSize: '11px' }}>DRAFT</span>}
-                                    {row.status === 'ERROR' && <span style={{ background: '#FEE2E2', color: '#B91C1C', padding: '4px 8px', borderRadius: '4px', fontWeight: 600, fontSize: '11px' }}>ERROR</span>}
-                                    {row.status === 'PROCESSING' && <span style={{ background: '#DBEAFE', color: '#1E40AF', padding: '4px 8px', borderRadius: '4px', fontWeight: 600, fontSize: '11px' }}>PROCESSING</span>}
+                                    {row.status === 'STORED' && <span style={{ background: '#DEF7EC', color: '#03543F', padding: '4px 8px', borderRadius: '4px', fontWeight: 600, fontSize: '11px' }}>STORED</span>}
+                                    {row.status === 'VALIDATING' && <span style={{ background: '#FEF3C7', color: '#92400E', padding: '4px 8px', borderRadius: '4px', fontWeight: 600, fontSize: '11px' }}>VALIDATING</span>}
+                                    {row.status === 'INCOMING' && <span style={{ background: '#DBEAFE', color: '#1E40AF', padding: '4px 8px', borderRadius: '4px', fontWeight: 600, fontSize: '11px' }}>INCOMING</span>}
                                 </td>
                                 <td>{row.date}</td>
                                 <td>
-                                    {row.status === 'DRAFT' ? (
-                                        <button className="btn" style={{ padding: '4px', color: 'var(--primary)' }} onClick={(e) => { e.stopPropagation(); onNavigateToQC(row.id); }}>Review</button>
-                                    ) : (
-                                        <button className="btn" style={{ padding: '4px', color: 'var(--text-sub)' }} disabled>View</button>
-                                    )}
+                                    <button className="btn" style={{ padding: '4px', color: 'var(--primary)' }} onClick={(e) => { e.stopPropagation(); onNavigateToQC(row.id); }}>View</button>
                                 </td>
                             </tr>
                         ))}

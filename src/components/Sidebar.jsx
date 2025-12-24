@@ -18,17 +18,9 @@ const Sidebar = ({ activeView, onNavigate }) => {
             label: "Modules",
             isCollapsible: true,
             items: [
-                { id: "ingestion", label: "Ingestion" },
-                { id: "qc", label: "Quality Control" },
+                { id: "drive", label: "Digital Archive" },
+                { id: "ingestion", label: "Ingestion Monitor" },
                 { id: "audit", label: "Audit Trail" }
-            ]
-        },
-        {
-            label: "Master Data",
-            isCollapsible: true, // Mark this section as collapsible
-            items: [
-                { id: "master", label: "Category Masterdata" },
-                { id: "physical", label: "Physical Location" }
             ]
         }
     ];

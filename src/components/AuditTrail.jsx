@@ -18,14 +18,22 @@ const AuditTrail = ({ data }) => {
                     <h2 style={{ fontSize: '20px', fontWeight: 600, margin: 0 }}>System Audit Trail</h2>
                     <p style={{ color: 'var(--text-sub)', fontSize: '13px', marginTop: '4px' }}>Immutable log of all system transactions and user activities.</p>
                 </div>
-                <input
-                    type="text"
-                    className="form-input"
-                    style={{ width: '300px' }}
-                    placeholder="Filter by user or action..."
-                    value={filter}
-                    onChange={(e) => setFilter(e.target.value)}
-                />
+                <div style={{ display: 'flex', gap: '10px' }}>
+                    <button
+                        className="btn btn-outline"
+                        onClick={() => alert("Audit Log exported to audit_log_2025.csv")}
+                    >
+                        📥 Export to CSV
+                    </button>
+                    <input
+                        type="text"
+                        className="form-input"
+                        style={{ width: '300px' }}
+                        placeholder="Filter by user or action..."
+                        value={filter}
+                        onChange={(e) => setFilter(e.target.value)}
+                    />
+                </div>
             </div>
 
             <div className="table-container">

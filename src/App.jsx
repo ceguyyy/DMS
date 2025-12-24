@@ -2,17 +2,37 @@ import React, { useState } from 'react';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import IngestionDashboard from './components/IngestionDashboard';
-import QCWorkspace from './components/QCWorkspace';
-import UploadModal from './components/UploadModal';
-import MasterData from './components/MasterData';
+import DataPreviewer from './components/DataPreviewer';
 import AuditTrail from './components/AuditTrail';
 import GlobalSearch from './components/GlobalSearch';
-import PhysicalLocationMaster from './components/PhysicalLocationMaster';
+import WebhookSimulator from './components/WebhookSimulator';
+import DriveView from './components/DriveView';
 
 const initialBatches = [
-  { id: "BATCH-001", file: "Scan_Sertifikat_BDG.pdf", cat: "SHM", status: "DRAFT", date: "20 Oct 2025" },
-  { id: "BATCH-002", file: "Scan_Akta_Tanah.jpg", cat: "AJB", status: "DRAFT", date: "21 Oct 2025" },
-  { id: "BATCH-003", file: "Scan_Warkah_09.pdf", cat: "WARKAH", status: "PROCESSING", date: "22 Oct 2025" }
+  {
+    id: "BATCH-001",
+    file: "Scan_Sertifikat_BDG.pdf",
+    cat: "SHM",
+    status: "STORED", /* was DRAFT */
+    date: "20 Oct 2025",
+    physicalLocation: { building: 'Gedung A', level: 'Lantai 1', rack: 'Rak 05', box: 'Box 10' }
+  },
+  {
+    id: "BATCH-002",
+    file: "Scan_Akta_Tanah.jpg",
+    cat: "AJB",
+    status: "VALIDATING", /* was DRAFT */
+    date: "21 Oct 2025",
+    physicalLocation: { building: 'Gedung A', level: 'Lantai 1', rack: 'Rak 05', box: 'Box 12' }
+  },
+  {
+    id: "BATCH-003",
+    file: "Scan_Warkah_09.pdf",
+    cat: "WARKAH",
+    status: "INCOMING", /* was PROCESSING */
+    date: "22 Oct 2025",
+    physicalLocation: { building: 'Gedung B', level: 'Lantai 2', rack: 'Rak 01', box: 'Box 03' }
+  }
 ];
 
 const mockQCData = {
@@ -95,25 +115,53 @@ function App() {
     setView('qc');
   };
 
-  const handleCreateBatch = (name) => {
-    const newBatch = {
-      id: "BATCH-NEW",
-      file: name + ".pdf",
-      cat: "...",
-      status: "PROCESSING",
-      date: "Just Now"
-    };
-    setBatches([newBatch, ...batches]);
-    handleAddLog('UPLOAD_BATCH', `Created new batch: ${newBatch.id}`, 'Christian Gunawan');
-    setIsModalOpen(false);
-  };
+  // Webhook Handler (Replacing manual batch creation)
+  const handleWebhookIngest = (payload) => {
+    // 1. Parse Physical Location
+    const [building, level, rack, box] = payload.lokasi_fisik.split('/').map(s => s.trim());
 
-  const handleApprove = () => {
-    alert("Document Metadata Validated & Synced to DMS Core.");
-    // Update batch status to success or remove it
-    setBatches(batches.map(b => b.id === activeBatchId ? { ...b, status: 'SYNCED' } : b));
-    handleAddLog('APPROVE_DOC', `Approved and synced document: ${activeBatchId}`);
-    setView('ingestion');
+    // 2. Create Document Record
+    const newDocId = payload.transaction_id;
+
+    const newDoc = {
+      id: newDocId,
+      title: payload.suggested_category.toUpperCase(),
+      status: 'COMPLETED', // Auto-completed as per "Black Box" rule
+      date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+      file: `Scan_${newDocId}.jpg`,
+      cat: payload.suggested_category,
+
+      // Detailed Data (previously in mockQCData)
+      ocrContent: {
+        text: payload.ocr_text,
+        confidence: payload.confidence_score
+      },
+      physicalLocation: {
+        building, // e.g., "Gedung A"
+        level,    // e.g., "Lantai 1"
+        rack,     // e.g., "Rak 05"
+        box       // e.g., "Box 10"
+      },
+      history: [
+        {
+          date: new Date().toISOString(),
+          action: 'INGESTED',
+          user: 'Akira OCR Webhook',
+          details: `Received from ${payload.lokasi_fisik}`
+        }
+      ]
+    };
+
+    // 3. Update State
+    // We strictly append to the "Repository" (Batches + Details combined)
+    setBatches(prev => [newDoc, ...prev]);
+
+    // Add to detailed lookup as well if we keep using it, or verify if we can merge.
+    // For this prototype, we'll try to keep `batches` as the main list source 
+    // and inject into mockQCData for the detail view to work without full refactor yet.
+    mockQCData[newDocId] = newDoc;
+
+    handleAddLog('WEBHOOK_RECEIVED', `Ingested ${newDocId} into ${box}`, 'Akira Integration');
   };
 
   // Master Data Handlers
@@ -122,20 +170,40 @@ function App() {
     handleAddLog('CREATE_CAT', `Created category: ${cat.name}`);
   };
 
+  /* Correcting the syntax error: closing brace for component was missing or misplaced */
+
   const handleDeleteCategory = (id) => {
     const cat = categories.find(c => c.id === id);
     setCategories(categories.filter(c => c.id !== id));
     handleAddLog('DELETE_CAT', `Deleted category: ${cat ? cat.name : id}`);
   };
 
-  const handleNextBatch = () => {
+  const handleMoveDocument = (docId, newLocation) => {
+    setBatches(prev => prev.map(doc => {
+      if (doc.id === docId) {
+        return {
+          ...doc,
+          physicalLocation: {
+            building: newLocation.building,
+            level: newLocation.level,
+            rack: newLocation.rack,
+            box: newLocation.box
+          }
+        };
+      }
+      return doc;
+    }));
+    handleAddLog('MOVE_DOC', `Moved ${docId} to ${newLocation.building}/${newLocation.box}`);
+  };
+
+  const handleNextDoc = () => {
     const currentIndex = batches.findIndex(b => b.id === activeBatchId);
     if (currentIndex < batches.length - 1) {
       setActiveBatchId(batches[currentIndex + 1].id);
     }
   };
 
-  const handlePrevBatch = () => {
+  const handlePrevDoc = () => {
     const currentIndex = batches.findIndex(b => b.id === activeBatchId);
     if (currentIndex > 0) {
       setActiveBatchId(batches[currentIndex - 1].id);
@@ -155,36 +223,35 @@ function App() {
               onOpenModal={() => setIsModalOpen(true)}
             />
           )}
-          {view === 'qc' && (
-            <QCWorkspace
-              onApprove={handleApprove}
-              data={mockQCData[activeBatchId] || mockQCData["BATCH-001"]}
-              onNext={handleNextBatch}
-              onPrev={handlePrevBatch}
-              hasNext={batches.findIndex(b => b.id === activeBatchId) < batches.length - 1}
-              hasPrev={batches.findIndex(b => b.id === activeBatchId) > 0}
-              categories={categories}
+          {view === 'drive' && (
+            <DriveView
+              documents={batches}
+              onNavigateToDoc={handleNavigateToQC}
+              onMoveDocument={handleMoveDocument}
             />
           )}
-          {view === 'master' && (
-            <MasterData data={categories} onAdd={handleAddCategory} onDelete={handleDeleteCategory} />
-          )}
-          {view === 'physical' && (
-            <PhysicalLocationMaster />
+          {view === 'qc' && (
+            <DataPreviewer
+              data={mockQCData[activeBatchId] || {
+                // Fallback for demo if id not found in mockQCData but exists in batches
+                ...batches.find(b => b.id === activeBatchId),
+                ocrContent: batches.find(b => b.id === activeBatchId)?.ocrContent || {},
+                physicalLocation: batches.find(b => b.id === activeBatchId)?.physicalLocation || {}
+              }}
+              onBack={() => setView('drive')}
+              onNextDoc={handleNextDoc}
+              onPrevDoc={handlePrevDoc}
+            />
           )}
           {view === 'audit' && (
             <AuditTrail data={auditLogs} />
           )}
           {view === 'search' && (
-            <GlobalSearch />
+            <GlobalSearch onNavigateToDoc={handleNavigateToQC} />
           )}
         </div>
       </div>
-      <UploadModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSubmit={handleCreateBatch}
-      />
+      <WebhookSimulator onIngest={handleWebhookIngest} />
     </>
   );
 }
